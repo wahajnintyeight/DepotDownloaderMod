@@ -28,6 +28,7 @@ namespace DepotDownloader
 
         static async Task<int> Main(string[] args)
         {
+            using var telemetry = JobTelemetry.Start();
             if (args.Length == 0)
             {
                 PrintVersion();
@@ -188,6 +189,12 @@ namespace DepotDownloader
             }
 
             ContentDownloader.Config.MaxDownloads = GetParameter(args, "-max-downloads", 8);
+            ContentDownloader.Config.MaxValidators = GetParameter(args, "-max-validators", 0);
+            if (ContentDownloader.Config.MaxValidators < 0)
+            {
+                Console.WriteLine("Error: -max-validators must be zero or greater.");
+                return 1;
+            }
             ContentDownloader.Config.LoginID = HasParameter(args, "-loginid") ? GetParameter<uint>(args, "-loginid") : null;
             ContentDownloader.Config.UseManifestFile = HasParameter(args, "-manifestfile");
             ContentDownloader.Config.ManifestFile = GetParameter<string>(args, "-manifestfile");
@@ -562,6 +569,7 @@ namespace DepotDownloader
             Console.WriteLine("  -manifest-only           - downloads a human readable manifest for any depots that would be downloaded.");
             Console.WriteLine("  -cellid <#>              - the overridden CellID of the content server to download from.");
             Console.WriteLine("  -max-downloads <#>       - maximum number of chunks to download concurrently. (default: 8).");
+            Console.WriteLine("  -max-validators <#>      - files to validate concurrently (default: automatic).");
             Console.WriteLine("  -loginid <#>             - a unique 32-bit integer Steam LogonID in decimal, required if running multiple instances of DepotDownloader concurrently.");
             Console.WriteLine("  -use-lancache            - forces downloads over the local network via a Lancache instance.");
             Console.WriteLine();

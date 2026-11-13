@@ -4,6 +4,21 @@ IMPROTANT: This Tool require a manifest file to work Due to GetManifestRequestCo
 
 Steam depot downloader utilizing the SteamKit2 library with depot keys support and many other features. Supports .NET 9.0  
 
+## DDM-GUI fork build
+
+This fork includes validation and progress reporting changes for use with DDM-GUI. The latest Windows x64 executable is published under [Releases](https://github.com/wahajnintyeight/DepotDownloaderMod/releases/latest).
+
+### Validation performance
+
+- File validation runs concurrently. On Windows, the program uses one validation worker when the install drive reports a rotational seek penalty (typically an HDD). SSDs and NVMe drives use the configured `-max-downloads` count; unsupported or unknown drive types also use that count.
+- Set `-max-validators <n>` to override the automatic worker count. A positive value sets the number of validation workers. `0` selects the automatic behavior, and negative values are rejected.
+- Manifest file and chunk lookups are indexed to avoid repeatedly scanning large manifests. Checksum reads use buffered I/O.
+- These settings only control validation work; `-max-downloads` continues to control chunk downloads.
+
+### DDM-GUI progress telemetry
+
+The release executable can emit newline-delimited progress counters for DDM-GUI when launched with `DEPOTDROP_TELEMETRY=1`. The counters report completed compressed chunk bytes and bytes read during checksum validation. They are cumulative job counters; validation reads may be served from the operating system cache and are not a measure of physical disk throughput.
+
 Works with keys from SteamTools:  
 
 https://bbs.steamtools.net/forum.php?mod=viewthread&tid=44&highlight=%E5%A4%A7%E5%AE%B6  
@@ -73,6 +88,7 @@ Parameter               | Description
 `-manifest-only`		| downloads a human readable manifest for any depots that would be downloaded.
 `-cellid <#>`			| the overridden CellID of the content server to download from.
 `-max-downloads <#>`	| maximum number of chunks to download concurrently. (default: 8).
+`-max-validators <#>` | maximum number of files to validate concurrently. By default, Windows hard drives use one worker; other drives use `-max-downloads`.
 `-loginid <#>`			| a unique 32-bit integer Steam LogonID in decimal, required if running multiple instances of DepotDownloader concurrently
  `-use-lancache`         | forces downloads over the local network via a Lancache instance.
  `-debug`                | enable verbose debug logging.

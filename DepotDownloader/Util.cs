@@ -2,6 +2,7 @@
 // in file 'LICENSE', which is part of this source code package.
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -100,12 +101,44 @@ namespace DepotDownloader
         public static byte[] AdlerHash(Stream stream, int length)
         {
             uint a = 0, b = 0;
-            for (var i = 0; i < length; i++)
+            var buffer = ArrayPool<byte>.Shared.Rent(65536);
+            var bytesRead = 0L;
+            try
             {
-                var c = (uint)stream.ReadByte();
+                var remaining = length;
+                while (remaining > 0)
+                {
+                    var count = stream.Read(buffer, 0, Math.Min(remaining, 65536));
+                    bytesRead += count;
+                    if (count == 0)
+                    {
+                        // Preserve the existing checksum behavior for a truncated stream.
+                        while (remaining-- > 0)
+                        {
+                            a = unchecked(a + uint.MaxValue) % 65521;
+                            b = unchecked(b + a) % 65521;
+                        }
+                        break;
+                    }
 
-                a = (a + c) % 65521;
-                b = (b + a) % 65521;
+                    remaining -= count;
+                    for (var offset = 0; offset < count;)
+                    {
+                        var end = Math.Min(offset + 5550, count);
+                        for (; offset < end; offset++)
+                        {
+                            a += buffer[offset];
+                            b += a;
+                        }
+                        a %= 65521;
+                        b %= 65521;
+                    }
+                }
+            }
+            finally
+            {
+                JobTelemetry.Validated(bytesRead);
+                ArrayPool<byte>.Shared.Return(buffer);
             }
 
             return BitConverter.GetBytes(a | (b << 16));
